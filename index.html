@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fix: resolve emotional incident during production · Pull Request #1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel-2:#0d1117; --header:#010409;
+    --border:#30363d; --text:#e6edf3; --muted:#8b949e;
+    --green:#238636; --green-open:#2ea043; --green-bg:rgba(46,160,67,0.15);
+    --red:#f85149; --red-bg:rgba(248,81,73,0.12);
+    --purple:#8957e5; --purple-bg:rgba(137,87,229,0.15);
+    --blue:#58a6ff; --orange:#f78166; --amber:#d29922; --pink:#f778ba;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{ background:var(--bg); color:var(--text); font-family:'JetBrains Mono', monospace; }
+  a{ color:inherit; text-decoration:none; }
+
+  .gh-nav{ background:var(--header); border-bottom:1px solid var(--border); padding:12px 20px; display:flex; align-items:center; gap:14px; font-size:0.85rem; color:var(--muted); }
+  .gh-nav .repo{ color:var(--text); font-weight:600; }
+  .gh-subnav{ background:var(--header); border-bottom:1px solid var(--border); padding:0 20px; display:flex; gap:22px; font-size:0.85rem; overflow-x:auto; }
+  .gh-subnav a{ padding:11px 2px; color:var(--muted); border-bottom:2px solid transparent; white-space:nowrap; }
+  .gh-subnav a.active{ color:var(--text); border-bottom-color:var(--orange); font-weight:600; }
+
+  .container{ max-width:1200px; margin:0 auto; padding:24px 20px 100px; }
+
+  .pr-title{ font-size:1.45rem; font-weight:600; line-height:1.4; }
+  .pr-title .num{ color:var(--muted); font-weight:400; }
+  .pr-meta-row{ margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .status-badge{ display:inline-flex; align-items:center; gap:6px; background:var(--green-open); color:#fff; padding:5px 12px; border-radius:999px; font-size:0.85rem; font-weight:700; }
+  .status-badge.merged{ background:var(--purple); }
+  .status-badge .dot{ width:8px; height:8px; border-radius:50%; background:#fff; animation: pulse-dot 2s infinite; }
+  @keyframes pulse-dot {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(255, 255, 255, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+  }
+  .pr-meta-text{ color:var(--muted); font-size:0.88rem; }
+  .branch-pill{ background:var(--panel-2); border:1px solid var(--border); padding:2px 8px; border-radius:6px; color:var(--blue); font-size:0.85rem; }
+
+  .tabs{ margin-top:22px; display:flex; gap:4px; border-bottom:1px solid var(--border); font-size:0.88rem; }
+  .tab-btn{ background:none; border:none; color:var(--muted); padding:10px 14px; cursor:pointer; border-bottom:2px solid transparent; font-family:inherit; font-size:0.88rem; }
+  .tab-btn.active{ color:var(--text); border-bottom-color:var(--orange); font-weight:600; }
+  .tab-btn .count{ background:var(--panel); border-radius:999px; padding:1px 8px; margin-left:6px; font-size:0.78rem; color:var(--muted); }
+
+  .layout{ display:flex; gap:24px; margin-top:22px; align-items:flex-start; }
+  .main-col{ flex:1; min-width:0; }
+  .side-col{ width:280px; flex-shrink:0; font-size:0.85rem; }
+  @media(max-width:900px){ .layout{ flex-direction:column; } .side-col{ width:100%; order:-1; } }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; animation: fadeIn 0.25s ease-out forwards; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .comment{ background:var(--panel); border:1px solid var(--border); border-radius:8px; margin-bottom:18px; overflow:hidden; }
+  .comment-head{ background:var(--panel-2); padding:10px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; font-size:0.85rem; color:var(--muted); }
+  .avatar{ width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.78rem; font-weight:700; color:#fff; flex-shrink:0; }
+  .avatar.k{ background:var(--pink); } .avatar.s{ background:var(--blue); }
+  .comment-head b{ color:var(--text); }
+  .comment-body{ padding:16px; font-size:0.92rem; line-height:1.7; }
+  .comment-body p{ margin-bottom:10px; }
+  .comment-body p:last-child{ margin-bottom:0; }
+  .comment-body .dim{ color:var(--muted); }
+  .comment-body ul{ margin:8px 0 8px 20px; }
+  .comment-body li{ margin-bottom:4px; }
+  .codeblock{ background:var(--panel-2); border:1px solid var(--border); border-radius:6px; padding:12px 14px; font-size:0.83rem; margin:10px 0; white-space:pre-wrap; color:var(--text); line-height:1.6; }
+  .codeblock .g{ color:var(--green-open); }
+  .codeblock .m{ color:var(--muted); }
+  blockquote{ border-left:3px solid var(--border); padding-left:14px; color:var(--muted); font-style:italic; margin:10px 0; }
+
+  /* issue card */
+  .issue-card{ background:var(--panel); border:1px solid var(--border); border-left:3px solid var(--red); border-radius:8px; padding:16px; margin-bottom:18px; }
+  .issue-card .title{ font-weight:700; font-size:0.98rem; }
+  .issue-card .sev{ display:inline-block; margin-top:6px; font-size:0.75rem; background:var(--red-bg); color:var(--red); padding:2px 8px; border-radius:6px; font-weight:700; }
+  .issue-card .env{ font-size:0.8rem; color:var(--muted); margin-top:6px; }
+
+  /* fix / request items */
+  .fix-item, .req-item{ background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:14px 16px; margin-bottom:12px; }
+  .fix-item .tag{ display:inline-block; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px; background:var(--green-bg); color:var(--green-open); margin-right:8px; }
+  .req-item .tag{ display:inline-block; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px; background:var(--purple-bg); color:var(--purple); margin-right:8px; }
+  .fix-item .title, .req-item .title{ font-weight:600; font-size:0.92rem; }
+  .fix-item .desc, .req-item .desc{ margin-top:6px; font-size:0.88rem; color:var(--text); line-height:1.6; }
+  .fix-item .desc .m, .req-item .desc .m{ color:var(--muted); }
+
+  /* resolution table */
+  .res-table{ width:100%; border-collapse:collapse; font-size:0.86rem; }
+  .res-table th{ text-align:left; padding:8px 10px; color:var(--muted); border-bottom:1px solid var(--border); font-weight:600; }
+  .res-table td{ padding:8px 10px; border-bottom:1px solid var(--border-muted, var(--border)); }
+  .res-table td.state{ font-weight:600; }
+
+  /* ci checks */
+  .ci-list{ list-style:none; }
+  .ci-row{ display:flex; justify-content:space-between; align-items:center; padding:9px 4px; border-bottom:1px solid var(--border); font-size:0.88rem; }
+  .ci-row:last-child{ border-bottom:none; }
+  .ci-row .label{ display:flex; gap:8px; align-items:center; }
+  .ci-row .val{ font-weight:700; font-size:0.8rem; }
+  .ci-row .val.pass{ color:var(--green-open); }
+  .ci-row .val.mid{ color:var(--amber); }
+  .ci-row .val.fail{ color:var(--red); }
+  .ci-row .val.pending{ color:var(--muted); }
+
+  /* reviewer actions */
+  .reviewer-actions{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  .rv-btn{ font-family:inherit; font-size:0.85rem; padding:8px 14px; border-radius:6px; border:1px solid var(--border); background:var(--panel-2); color:var(--text); cursor:pointer; transition: all 0.2s ease; }
+  .rv-btn:hover{ border-color:var(--muted); background:var(--panel); }
+  .rv-btn.approve:hover{ border-color:var(--green-open); color:var(--green-open); box-shadow: 0 0 10px rgba(46,160,67,0.15); }
+  .rv-btn.reject:hover{ border-color:var(--red); color:var(--red); box-shadow: 0 0 10px rgba(248,81,73,0.15); }
+
+  .checklist{ list-style:none; margin-top:6px; }
+  .checklist li{ display:flex; gap:10px; padding:4px 0; font-size:0.9rem; align-items:flex-start; }
+  .checklist .box.on{ color:var(--green-open); } .checklist .box.off{ color:var(--muted); }
+  .checklist li.unchecked{ color:var(--muted); }
+
+  /* merge box */
+  .merge-box{ background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:16px; margin-top:6px; }
+  .merge-field{ background:var(--panel-2); border:1px solid var(--border); border-radius:6px; padding:10px 12px; font-size:0.88rem; margin-bottom:10px; }
+  .merge-field .k{ color:var(--muted); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; }
+  .merge-field .v{ margin-top:2px; }
+  .merge-btn{ width:100%; font-family:'JetBrains Mono', monospace; font-weight:700; font-size:0.92rem; background:var(--green); color:#fff; border:1px solid rgba(240,246,252,0.1); padding:13px 20px; border-radius:6px; cursor:pointer; transition: all 0.2s ease; }
+  .merge-btn:hover:not(:disabled){ background:var(--green-open); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(46,160,67,0.3); }
+  .merge-btn:active:not(:disabled){ transform: translateY(0); }
+  .merge-btn:disabled{ opacity:0.45; cursor:not-allowed; }
+  .reviewer-comment-appear{ animation: slideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .merge-status-line{ margin-top:10px; font-size:0.82rem; color:var(--muted); text-align:center; }
+  .merge-output{ margin-top:14px; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:0.82rem; color:var(--muted); display:none; white-space:pre-wrap; line-height:1.7; }
+  .merge-output.show{ display:block; }
+  .merge-output .g{ color:var(--green-open); } .merge-output .b{ color:var(--blue); }
+
+  /* commits tab */
+  .commit-row{ display:flex; gap:12px; padding:14px 16px; border-bottom:1px solid var(--border); align-items:flex-start; background:var(--panel); }
+  .commit-row .msg{ font-size:0.92rem; color:var(--text); font-weight:600; }
+  .commit-row .sub{ font-size:0.8rem; color:var(--muted); margin-top:4px; }
+  .commit-row .hash{ color:var(--blue); }
+
+  /* files changed */
+  .file-block{ background:var(--panel); border:1px solid var(--border); border-radius:8px; margin-bottom:20px; overflow:hidden; }
+  .file-head{ background:var(--panel-2); padding:10px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; }
+  .file-head .fname{ color:var(--text); font-weight:600; }
+  .file-stat .plus{ color:var(--green-open); }
+  .diff-table{ width:100%; border-collapse:collapse; font-size:0.82rem; }
+  .diff-table tr.add{ background:rgba(63,185,80,0.08); }
+  .diff-table tr.ctx td{ color:var(--muted); }
+  .diff-table td{ padding:2px 8px; white-space:pre; vertical-align:top; }
+  .ln{ width:34px; text-align:right; color:#484f58; user-select:none; }
+  .mark{ width:18px; text-align:center; user-select:none; font-weight:700; }
+  .diff-table tr.add .mark{ color:var(--green-open); }
+  .code{ color:var(--text); }
+  .code .kw{ color:var(--purple); } .code .fn{ color:var(--pink); } .code .cm{ color:var(--muted); font-style:italic; }
+
+  /* sidebar */
+  .side-section{ border-bottom:1px solid var(--border); padding:16px 0; }
+  .side-section:first-child{ padding-top:0; }
+  .side-label{ color:var(--text); font-weight:700; font-size:0.85rem; margin-bottom:8px; }
+  .side-row{ display:flex; align-items:center; gap:8px; color:var(--muted); font-size:0.85rem; margin-bottom:6px; }
+  .review-status{ font-size:0.78rem; padding:2px 8px; border-radius:999px; background:rgba(210,153,34,0.15); color:var(--amber); margin-left:auto; }
+  .review-status.done{ background:var(--green-bg); color:var(--green-open); }
+  .side-note{ color:var(--muted); font-size:0.78rem; line-height:1.5; }
+
+  footer{ text-align:center; margin-top:50px; font-size:0.78rem; color:var(--muted); }
+
+  .particle{ position:fixed; top:-30px; font-size:1rem; z-index:50; pointer-events:none; color:var(--green-open); animation:fall linear forwards; font-weight:700; }
+  @keyframes fall{ to{ transform:translateY(105vh) rotate(45deg); opacity:0.7; } }
+  @keyframes blink-cute {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.02); }
+  }
+</style>
+</head>
+<body>
+
+  <div class="gh-nav">
+    <span>⌬</span>
+    <span class="repo">kopal / pull-request</span>
+    <span>Code</span><span>Issues</span><span style="color:var(--text); font-weight:600;">Pull requests</span><span>Actions</span>
+  </div>
+  <div class="gh-subnav">
+    <a id="subnavOpenCount">1 Open</a>
+    <a id="subnavClosedCount" style="color: var(--muted);">0 Closed</a>
+  </div>
+
+  <div class="container">
+
+    <div class="pr-title">fix: resolve emotional incident during production <span class="num">#1</span></div>
+    <div class="pr-meta-row">
+      <span class="status-badge" id="statusBadge"><span class="dot"></span> Open</span>
+      <span class="pr-meta-text"><b style="color:var(--text)">kopal</b> wants to merge <b style="color:var(--text)">1 commit</b> into <span class="branch-pill">shiva:main</span> from <span class="branch-pill">kopal:apology-and-behaviour-fix</span></span>
+    </div>
+
+    <!-- CRITICAL INCIDENT BANNER -->
+    <div style="background-color:var(--red-bg); border:1px solid var(--red); border-radius:8px; padding:16px 20px; margin-top:20px; font-size:0.9rem; line-height:1.6;">
+      <div style="color:var(--red); font-weight:800; font-size:0.95rem; margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+        <span>⚠️</span> CRITICAL INCIDENT
+      </div>
+      <div style="color:var(--text); font-weight:500;">
+        <span style="color:var(--muted);">Kopal has identified a behavioural bug.</span><br>
+        <strong style="color:var(--orange);">Root cause:</strong> jealousy + insufficient attention.<br>
+        <strong style="color:var(--blue);">Resolution:</strong> apology + behavioural patch.
+      </div>
+      <div style="margin-top:12px; font-size:0.8rem; color:var(--muted); border-top:1px solid rgba(248,81,73,0.15); padding-top:10px; display:flex; justify-content:space-between; align-items:center;">
+        <span>STATUS: <b style="color:var(--amber);" id="bannerStatusText">AWAITING SHIVA'S REVIEW</b></span>
+        <span style="font-family:monospace; font-size:0.75rem; background:rgba(210,153,34,0.15); color:var(--amber); padding:2px 8px; border-radius:4px; font-weight:700;" id="bannerBadge">HIGH SEVERITY</span>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="conversation">Conversation</button>
+      <button class="tab-btn" data-tab="commits">Commits <span class="count">1</span></button>
+      <button class="tab-btn" data-tab="files">Files changed <span class="count">2</span></button>
+    </div>
+
+    <div class="layout">
+      <div class="main-col">
+
+        <!-- CONVERSATION -->
+        <div class="tab-panel active" id="tab-conversation">
+
+          <div class="comment">
+            <div class="comment-head"><div class="avatar k">K</div><b>kopal</b> commented now</div>
+            <div class="comment-body">
+              <blockquote>This PR addresses a critical behavioural issue introduced during Shiva's working hours.</blockquote>
+              <p class="dim">Root cause has been identified as a combination of:</p>
+              <ul>
+                <li>temporary loss of emotional regulation</li>
+                <li>jealousy of a piece of code 💻</li>
+                <li>excessive messaging 📱</li>
+                <li>and generally questionable decision-making</li>
+              </ul>
+              <p><b>No production code was harmed during this incident.</b></p>
+              <p class="dim">The developer, however, has suffered enough from the subsequent one-week deployment freeze.</p>
+            </div>
+          </div>
+
+          <div class="issue-card">
+            <div class="title">🔴 Issue #001 — Kopal disturbed Shiva during working hours</div>
+            <div class="sev">SEVERITY: HIGH</div>
+            <div class="env">Environment: <code>Shiva is working</code></div>
+            <div class="codeblock m">Expected:
+  Shiva  → works peacefully
+  Kopal  → respects working hours
+  Everyone → survives
+
+Actual:
+  Shiva  → works
+  Kopal  → becomes jealous of code
+  Kopal  → sends messages
+  Kopal  → sends more messages
+  Kopal  → realises this was a terrible idea
+  Shiva  → 😐
+  Kopal  → 💀</div>
+          </div>
+
+          <div class="comment">
+            <div class="comment-head"><div class="avatar k">K</div><b>kopal</b> proposed changes</div>
+            <div class="comment-body" style="padding-bottom:4px;">
+              <div class="fix-item"><span class="tag">fix #001</span><span class="title">Anti-Spam Protection 📱</span>
+                <div class="desc">Kopal shall not flood Shiva with messages when he is working.</div></div>
+              <div class="fix-item"><span class="tag">fix #002</span><span class="title">Remove Code Jealousy 💻</span>
+                <div class="desc">Code is not a person. Current status: <strong style="color:var(--green-open)">code ≠ threat</strong>.</div></div>
+              <div class="fix-item"><span class="tag">fix #003</span><span class="title">Prevent Message Flooding 🚨</span>
+                <div class="desc">The following transmission protocol is deprecated:</div>
+                <div class="codeblock m">deprecated:
+  "Okay." "Fine." "Nothing." "Are you angry?"
+  "Why aren't you replying?" "Okay don't reply then."
+  ...[17 additional messages]</div></div>
+              <div class="fix-item"><span class="tag">fix #004</span><span class="title">Add Reaction Cooldown 🧊</span>
+                <div class="desc">Before reacting, Kopal shall pause and think.</div>
+                <div class="codeblock"><span class="g">if</span> (emotionallyActivated) {
+    pause();
+    think();
+}</div></div>
+              <div class="fix-item"><span class="tag">fix #005</span><span class="title">Respect Shiva's Dependencies 📦</span>
+                <div class="desc">Kopal acknowledges Shiva has dependencies: <span class="m">work, responsibilities, friends, and kopal also.</span></div></div>
+            </div>
+          </div>
+
+          <!-- REQUESTS AS REVIEW COMMENTS -->
+          <div class="comment" style="border-left: 3px solid var(--purple);">
+            <div class="comment-head">
+              <div class="avatar k">K</div>
+              <b>kopal</b> submitted a review of Shiva's specifications
+              <span class="review-status done" style="background:var(--purple-bg); color:var(--purple); margin-left:auto; font-weight:600; border-radius:999px;">Pending Revisions</span>
+            </div>
+            <div class="comment-body">
+              <p class="dim" style="margin-bottom:14px; font-weight:600;">Whilst Kopal's fixes are being deployed, she respectfully requests the reviewer to address these inline review feedback items:</p>
+              
+              <!-- Comment 1 -->
+              <div style="border:1px solid var(--border); border-radius:6px; margin-bottom:16px; background:var(--panel-2); overflow:hidden;">
+                <div style="background:var(--panel); padding:8px 12px; font-size:0.82rem; border-bottom:1px solid var(--border); color:var(--muted); display:flex; justify-content:space-between;">
+                  <span>File: <code>shiva_behavioural_specs.json:L24</code></span>
+                  <span style="color:var(--orange); font-weight:700;">request #001</span>
+                </div>
+                <div style="padding:12px;">
+                  <div style="font-weight:600; color:var(--text); margin-bottom:4px;">Reduce the current one-week silent treatment</div>
+                  <div style="font-size:0.85rem; color:var(--muted); line-height:1.5;">The current duration has exceeded reasonable SLA limits.</div>
+                </div>
+              </div>
+
+              <!-- Comment 2 -->
+              <div style="border:1px solid var(--border); border-radius:6px; margin-bottom:16px; background:var(--panel-2); overflow:hidden;">
+                <div style="background:var(--panel); padding:8px 12px; font-size:0.82rem; border-bottom:1px solid var(--border); color:var(--muted); display:flex; justify-content:space-between;">
+                  <span>File: <code>communication_protocols.js:L88</code></span>
+                  <span style="color:var(--orange); font-weight:700;">request #002</span>
+                </div>
+                <div style="padding:12px;">
+                  <div style="font-weight:600; color:var(--text); margin-bottom:4px;">Communicate when genuinely upset</div>
+                  <div style="font-size:0.85rem; color:var(--muted); line-height:1.5;">Rather than leaving Kopal to conduct <span style="font-family:monospace; background:var(--bg); padding:2px 4px; border-radius:4px; font-size:0.78rem;">forensic analysis + timestamp investigation + overthinking + FBI-level deduction</span>.</div>
+                </div>
+              </div>
+
+              <!-- Comment 3 -->
+              <div style="border:1px solid var(--border); border-radius:6px; background:var(--panel-2); overflow:hidden;">
+                <div style="background:var(--panel); padding:8px 12px; font-size:0.82rem; border-bottom:1px solid var(--border); color:var(--muted); display:flex; justify-content:space-between;">
+                  <span>File: <code>attention_priority_queue.cpp:L5</code></span>
+                  <span style="color:var(--orange); font-weight:700;">request #003</span>
+                </div>
+                <div style="padding:12px;">
+                  <div style="font-weight:600; color:var(--text); margin-bottom:4px;">Occasionally provide attention to Kopal™ before the codebase</div>
+                  <div style="font-size:0.85rem; color:var(--muted); line-height:1.5;">Subject to operational requirements and availability.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="comment reply">
+            <div class="comment-head"><div class="avatar k">K</div><b>kopal</b> commented now</div>
+            <div class="comment-body">
+              <p class="dim" style="margin-bottom:6px;">Special provision, on official record:</p>
+              <blockquote>"Baaki sab to maan hi leti hoon."</blockquote>
+            </div>
+          </div>
+
+          <!-- FAKE REVIEW COMMENTS (ALIVE SURPRISE) -->
+          <div class="comment">
+            <div class="comment-head"><div class="avatar k">K</div><b>kopal</b> commented now</div>
+            <div class="comment-body" style="padding-bottom: 12px;">
+              <p style="margin-bottom: 0;">I know this is a ridiculous amount of infrastructure for saying sorry.</p>
+              
+              <!-- Threaded Reply inside the same card -->
+              <div style="margin-top: 14px; border-top: 1px solid var(--border); padding-top: 14px; display: flex; gap: 12px; align-items: flex-start;">
+                <div class="avatar k" style="width: 22px; height: 22px; font-size: 0.68rem;">K</div>
+                <div style="flex: 1;">
+                  <div style="font-size: 0.82rem; color: var(--muted); margin-bottom: 4px;"><b>kopal</b> replied now</div>
+                  <p style="font-size: 0.9rem; color: var(--text); margin-bottom: 0; line-height: 1.6;">
+                    But considering the severity of the incident, I felt a normal apology lacked sufficient deployment coverage.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="comment">
+            <div class="comment-head"><div class="avatar k">K</div><b>kopal</b> commented now</div>
+            <div class="comment-body">
+              <p>Dear Shiva,</p>
+              <p>I genuinely am sorry.</p>
+              <p>Now, as the humble contributor of this PR, I respectfully request:</p>
+              <p><b>Please approve and merge. 🥺</b></p>
+              <p class="dim" style="margin-top:14px;">yours stubbornly,<br>kopal</p>
+            </div>
+          </div>
+
+          <div class="comment">
+            <div class="comment-head">🚦 <b style="margin-left:2px;">reconciliation / checks</b></div>
+            <div class="comment-body" style="padding:8px 16px;">
+              <ul class="ci-list">
+                <li class="ci-row"><span class="label">Apology sincerity</span><span class="val pass">✅ PASS</span></li>
+                <li class="ci-row"><span class="label">Recognition of fault</span><span class="val pass">✅ PASS</span></li>
+                <li class="ci-row"><span class="label">Commitment to improvement</span><span class="val pass">✅ PASS</span></li>
+                <li class="ci-row"><span class="label">Code jealousy eliminated</span><span class="val mid" id="ciJealousy">🟡 IN PROGRESS</span></li>
+                <li class="ci-row"><span class="label">Message spam prevention</span><span class="val pass">✅ PASS</span></li>
+                <li class="ci-row"><span class="label">Emotional regulation</span><span class="val mid" id="ciEmotion">🟡 BUILDING</span></li>
+                <li class="ci-row"><span class="label">Shiva's anger</span><span class="val fail" id="ciAnger">🔴 FAILING</span></li>
+                <li class="ci-row"><span class="label">Peace restoration</span><span class="val pending" id="ciPeace">⏳ PENDING REVIEW</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="comment">
+            <div class="comment-head">🚀 <b style="margin-left:2px;">merge conditions</b></div>
+            <div class="comment-body">
+              <ul class="checklist">
+                <li><span class="box on">[x]</span> Kopal has apologised.</li>
+                <li><span class="box on">[x]</span> Kopal has accepted responsibility.</li>
+                <li><span class="box on">[x]</span> Behavioural fixes have been proposed.</li>
+                <li><span class="box on">[x]</span> Code jealousy has been acknowledged as ridiculous.</li>
+                <li class="unchecked" id="cond5"><span class="box off">[ ]</span> Shiva stops being angry.</li>
+                <li class="unchecked" id="cond6"><span class="box off">[ ]</span> Shiva talks to Kopal.</li>
+                <li class="unchecked" id="cond7"><span class="box off">[ ]</span> Peace is restored.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="comment">
+            <div class="comment-head">💬 <b style="margin-left:2px;">review required</b> — <span class="dim">reviewer:</span> @shiva</div>
+            <div class="comment-body">
+              <p class="dim">Review status: <b id="reviewStatusText" style="color:var(--amber);">Changes requested</b></p>
+              <div class="reviewer-actions" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <button class="rv-btn reject" id="btnReject">❌ Request changes</button>
+                <button class="rv-btn" id="btnComment">💬 Comment</button>
+                <div style="display: inline-flex; align-items: center; gap: 8px;">
+                  <button class="rv-btn approve" id="btnApprove">✅ Approve</button>
+                  <span id="cuteHintText" style="font-size: 0.78rem; color: var(--pink); font-weight: 700; animation: blink-cute 1.5s infinite; white-space: nowrap; display: inline-block;">krdoo na approve ab 👉🏻👈🏻</span>
+                </div>
+              </div>
+              <div id="rvReplyArea"></div>
+            </div>
+          </div>
+
+          <div class="merge-box">
+            <div class="merge-field"><div class="k">merge strategy</div><div class="v" id="mergeStrategyVal">Approve above to merge</div></div>
+            <div class="merge-field"><div class="k">commit message</div><div class="v">fix: restore peace between Shiva and Kopal</div></div>
+            <button class="merge-btn" id="mergeBtn" disabled>⑂ Squash and merge</button>
+            <div class="merge-status-line" id="mergeStatusLine">Awaiting Shiva's approval...</div>
+            <div class="merge-output" id="mergeOutput"></div>
+          </div>
+
+        </div>
+
+        <!-- COMMITS -->
+        <div class="tab-panel" id="tab-commits">
+          <div style="border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+            <div class="commit-row">
+              <div class="avatar k">K</div>
+              <div>
+                <div class="msg">fix: I am genuinely sorry</div>
+                <div class="sub">kopal committed now · <span class="hash">3f1a9c2</span></div>
+              </div>
+            </div>
+          </div>
+          <div id="mergeCommitRow"></div>
+        </div>
+
+        <!-- FILES CHANGED -->
+        <div class="tab-panel" id="tab-files">
+          <div class="file-block">
+            <div class="file-head"><span class="fname">reaction_cooldown.js</span><span class="file-stat"><span class="plus">+5</span></span></div>
+            <table class="diff-table">
+              <tr class="ctx"><td class="ln">1</td><td class="ln">1</td><td class="mark"></td><td class="code cm">// fix #007 — reaction cooldown</td></tr>
+              <tr class="add"><td class="ln"></td><td class="ln">2</td><td class="mark">+</td><td class="code"><span class="kw">if</span> (emotionallyActivated) {</td></tr>
+              <tr class="add"><td class="ln"></td><td class="ln">3</td><td class="mark">+</td><td class="code">&nbsp;&nbsp;<span class="fn">pause</span>();</td></tr>
+              <tr class="add"><td class="ln"></td><td class="ln">4</td><td class="mark">+</td><td class="code">&nbsp;&nbsp;<span class="fn">think</span>();</td></tr>
+              <tr class="add"><td class="ln"></td><td class="ln">5</td><td class="mark">+</td><td class="code">&nbsp;&nbsp;<span class="fn">communicateProperly</span>();</td></tr>
+              <tr class="add"><td class="ln"></td><td class="ln">6</td><td class="mark">+</td><td class="code">}</td></tr>
+            </table>
+          </div>
+          <div class="file-block">
+            <div class="file-head"><span class="fname">CHANGES.md</span><span class="file-stat"><span class="plus">+8</span></span></div>
+            <table class="diff-table">
+              <tr class="add"><td class="ln"></td><td class="ln">1</td><td class="mark">+</td><td class="code">I am sorry</td></tr>
+              <tr class="add"><td class="ln"></td><td class="ln">2</td><td class="mark">+</td><td class="code">I recognise what I did wrong</td></tr>
+              <tr class="add"><td class="ln"></td><td class="ln">3</td><td class="mark">+</td><td class="code">I will respect your work</td></tr>
+              <tr class="add"><td class="ln"></td><td class="ln">4</td><td class="mark">+</td><td class="code">I will not spam you</td></tr>
+              <tr class="add"><td class="ln"></td><td class="ln">5</td><td class="mark">+</td><td class="code">I will communicate better</td></tr>
+              <tr class="add"><td class="ln"></td><td class="ln">6</td><td class="mark">+</td><td class="code">I will give you space when you need it</td></tr>
+              <tr class="add"><td class="ln"></td><td class="ln">7</td><td class="mark">+</td><td class="code">I will try not to get jealous of software</td></tr>
+              <tr class="add"><td class="ln"></td><td class="ln">8</td><td class="mark">+</td><td class="code">I will genuinely try not to repeat this</td></tr>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="side-col">
+        <div class="side-section">
+          <div class="side-label">Reviewers</div>
+          <div class="side-row"><div class="avatar s" style="width:20px;height:20px;font-size:0.68rem;">S</div> shiva <span class="review-status" id="reviewStatus">Changes requested</span></div>
+        </div>
+        <div class="side-section">
+          <div class="side-label">Assignees</div>
+          <div class="side-row"><div class="avatar k" style="width:20px;height:20px;font-size:0.68rem;">K</div> kopal</div>
+        </div>
+
+        <div class="side-section">
+          <div class="side-label">Labels</div>
+          <div class="side-row" id="sideLabels">severity: high · sla: exceeded</div>
+        </div>
+        <div class="side-section">
+          <div class="side-label">Milestone</div>
+          <div class="side-row">Peace Restoration</div>
+        </div>
+        <div class="side-section" style="border-bottom:none;">
+          <div class="side-note">Deployment freeze: 1 week, already served. This PR cannot be closed without a conversation first.</div>
+        </div>
+      </div>
+    </div>
+
+    <footer>pull request #1 · repo: pull-request</footer>
+  </div>
+
+<script>
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  const mergeBtn = document.getElementById('mergeBtn');
+  const mergeStatusLine = document.getElementById('mergeStatusLine');
+  const reviewStatus = document.getElementById('reviewStatus');
+  const reviewStatusText = document.getElementById('reviewStatusText');
+  const rvReplyArea = document.getElementById('rvReplyArea');
+
+  document.getElementById('btnApprove').addEventListener('click', ()=>{
+    logEvent("Approve Clicked ✅");
+    reviewStatus.textContent = 'Approved';
+    reviewStatus.classList.add('done');
+    reviewStatusText.textContent = 'Approved';
+    reviewStatusText.style.color = 'var(--green-open)';
+    mergeBtn.disabled = false;
+    mergeStatusLine.textContent = 'Ready to merge.';
+    rvReplyArea.innerHTML = '<div class="comment reviewer-comment-appear" style="margin-top:12px;"><div class="comment-head"><div class="avatar s">S</div><b>shiva</b> approved these changes</div><div class="comment-body dim">haa theek hai..nhi hu gussa</div></div>';
+    
+    // Hide the cute hint text on approval
+    const hint = document.getElementById('cuteHintText');
+    if (hint) {
+      hint.style.display = 'none';
+    }
+
+    // Update Critical Incident status banner
+    const bannerStatus = document.getElementById('bannerStatusText');
+    const bannerBadge = document.getElementById('bannerBadge');
+    if (bannerStatus) {
+      bannerStatus.textContent = 'APPROVED & READY FOR DEPLOYMENT';
+      bannerStatus.style.color = 'var(--green-open)';
+    }
+    if (bannerBadge) {
+      bannerBadge.textContent = 'RESOLVED';
+      bannerBadge.style.backgroundColor = 'var(--green-bg)';
+      bannerBadge.style.color = 'var(--green-open)';
+    }
+    // Update merge strategy status text
+    const mergeStrategy = document.getElementById('mergeStrategyVal');
+    if (mergeStrategy) {
+      mergeStrategy.textContent = 'Squash and merge';
+    }
+  });
+
+  document.getElementById('btnReject').addEventListener('click', ()=>{
+    logEvent("Request Changes Clicked ❌");
+    reviewStatusText.textContent = 'Changes requested';
+    reviewStatusText.style.color = 'var(--amber)';
+    mergeBtn.disabled = true;
+    mergeStatusLine.textContent = "Awaiting Shiva's approval...";
+    rvReplyArea.innerHTML = '<div class="comment reviewer-comment-appear" style="margin-top:12px;"><div class="comment-head"><div class="avatar s">S</div><b>shiva</b> requested changes</div><div class="comment-body dim">ye sab kya hai</div></div>';
+    
+    // Show the cute hint text again if rejected
+    const hint = document.getElementById('cuteHintText');
+    if (hint) {
+      hint.style.display = 'inline-block';
+    }
+
+    // Reset merge strategy status text
+    const mergeStrategy = document.getElementById('mergeStrategyVal');
+    if (mergeStrategy) {
+      mergeStrategy.textContent = 'Approve above to merge';
+    }
+
+    // Update Critical Incident status banner
+    const bannerStatus = document.getElementById('bannerStatusText');
+    const bannerBadge = document.getElementById('bannerBadge');
+    if (bannerStatus) {
+      bannerStatus.textContent = 'AWAITING SHIVA\'S REVIEW';
+      bannerStatus.style.color = 'var(--amber)';
+    }
+    if (bannerBadge) {
+      bannerBadge.textContent = 'HIGH SEVERITY';
+      bannerBadge.style.backgroundColor = 'rgba(210,153,34,0.15)';
+      bannerBadge.style.color = 'var(--amber)';
+    }
+  });
+
+  document.getElementById('btnComment').addEventListener('click', ()=>{
+    logEvent("Comment Clicked 💬");
+    rvReplyArea.innerHTML = '<div class="comment reviewer-comment-appear" style="margin-top:12px;"><div class="comment-head"><div class="avatar s">S</div><b>shiva</b> commented</div><div class="comment-body dim">ye nhi sudhregi</div></div>';
+  });
+
+  function burstParticles(){
+    const syms = ['{ }','< />','//','fix','✓','🤗'];
+    for(let n=0;n<20;n++){
+      const p = document.createElement('div');
+      p.className='particle';
+      p.textContent = syms[Math.floor(Math.random()*syms.length)];
+      p.style.left = Math.random()*100 + 'vw';
+      p.style.animationDuration = (2.2 + Math.random()*1.8)+'s';
+      p.style.fontSize = (0.8 + Math.random()*0.6)+'rem';
+      document.body.appendChild(p);
+      setTimeout(()=>p.remove(), 4200);
+    }
+  }
+
+  mergeBtn.addEventListener('click', ()=>{
+    logEvent("Squash & Merge Clicked ⑂");
+    mergeBtn.disabled = true;
+    mergeBtn.textContent = 'Merging...';
+    burstParticles();
+
+    // flip CI checks
+    document.getElementById('ciJealousy').textContent='✅ RESOLVED'; document.getElementById('ciJealousy').className='val pass';
+    document.getElementById('ciEmotion').textContent='✅ STABLE'; document.getElementById('ciEmotion').className='val pass';
+    document.getElementById('ciAnger').textContent='✅ RESOLVED'; document.getElementById('ciAnger').className='val pass';
+    document.getElementById('ciPeace').textContent='✅ RESTORED'; document.getElementById('ciPeace').className='val pass';
+
+    // check merge conditions
+    ['cond5','cond6','cond7'].forEach(id=>{
+      const li = document.getElementById(id);
+      li.classList.remove('unchecked');
+      li.querySelector('.box').textContent='[x]';
+      li.querySelector('.box').className='box on';
+    });
+
+    const output = document.getElementById('mergeOutput');
+    output.classList.add('show');
+    output.innerHTML = ''; // Clear previous output
+    
+    const logs = [
+      '<span class="b">$</span> git merge --squash kopal:apology-and-behaviour-fix',
+      'Squashing...',
+      'Consolidating apology... <span class="g">done</span>',
+      'Resolving behavioural conflicts... <span class="g">done</span>',
+      'Removing code jealousy... <span class="g">done</span>',
+      'Running emotional CI... <span class="g">done</span>',
+      'All checks passed. ✅',
+      '<span class="g">🟢 MERGED</span>',
+      'fix: restore peace between Shiva and Kopal'
+    ];
+
+    let currentLogIndex = 0;
+    function printNextLog() {
+      if (currentLogIndex < logs.length) {
+        output.innerHTML += (currentLogIndex === 0 ? '' : '\n') + logs[currentLogIndex];
+        currentLogIndex++;
+        setTimeout(printNextLog, 350);
+      } else {
+        // Complete the merge UI update after all logs are printed!
+        mergeBtn.textContent = '✓ Merged';
+        document.getElementById('statusBadge').innerHTML = '<span class="dot"></span> Merged';
+        document.getElementById('statusBadge').classList.add('merged');
+        
+        // Update subnav text: 1 Open -> 0 Open / 1 Closed
+        document.getElementById('subnavOpenCount').textContent = '0 Open';
+        document.getElementById('subnavClosedCount').textContent = '1 Closed';
+        document.getElementById('subnavClosedCount').style.color = 'var(--text)';
+        document.getElementById('subnavClosedCount').style.fontWeight = '600';
+        
+        // Update Critical Incident status banner
+        const bannerStatus = document.getElementById('bannerStatusText');
+        const bannerBadge = document.getElementById('bannerBadge');
+        if (bannerStatus) {
+          bannerStatus.textContent = 'SUCCESSFULLY MERGED & DEPLOYED';
+          bannerStatus.style.color = 'var(--purple)';
+        }
+        if (bannerBadge) {
+          bannerBadge.textContent = 'CLOSED';
+          bannerBadge.style.backgroundColor = 'var(--purple-bg)';
+          bannerBadge.style.color = 'var(--purple)';
+        }
+
+        mergeStatusLine.textContent = 'Merged. Email notification sent! Peace restored.';
+
+        document.getElementById('mergeCommitRow').innerHTML = `
+          <div class="commit-row" style="border-top:1px solid var(--border); margin-top:10px; border-radius:8px;">
+            <div class="avatar k">K</div>
+            <div>
+              <div class="msg">fix: restore peace between Shiva and Kopal</div>
+              <div class="sub">kopal merged now · <span class="hash">8f3a91c</span> · co-authored-by: shiva</div>
+            </div>
+          </div>`;
+          
+        // Trigger email sending
+        sendMergeEmails();
+      }
+    }
+    
+    // Start printing logs
+    printNextLog();
+  });
+</script>
+
+<script>
+  // Decode Google Apps Script URL securely at runtime (hides it from GitHub search/scrapers)
+  const GOOGLE_SCRIPT_URL = atob("aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J6aDJnbVEya1AyemVzTHBTX0FKVzFVa1JJSVhEVWhGQ1F6b1kza0pzUFNtdkVoR1JrYndPVkNNb1lWWWVCRjdKbFZwdy9leGVj");
+
+  function sendMergeEmails() {
+
+    // Shiva Email Subject
+    const shivaSubject = `Hi Shiva, PR #001 has officially been approved and merged 🟢`;
+    
+    // Shiva Email HTML Template
+    const shivaHtmlBody = `
+<div style="background-color:#0d1117; color:#e6edf3; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; padding:32px 16px; margin:0; line-height:1.6;">
+  <div style="max-width:560px; margin:0 auto; background-color:#161b22; border:1px solid #30363d; border-radius:12px; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,0.55);">
+    <div style="background-color:#010409; padding:20px 24px; border-bottom:1px solid #30363d;">
+      <span style="font-weight:600; font-size:14px; color:#8b949e; font-family:monospace;">⌬ kopal / pull-request</span>
+    </div>
+    <div style="padding:32px 24px;">
+      <h2 style="font-size:18px; font-weight:600; margin-top:0; margin-bottom:16px; color:#58a6ff; font-family:inherit;">Hi Shiva,</h2>
+      
+      <p style="margin-bottom:20px; font-size:15px; color:#c9d1d9;">
+        <strong>PR #001: <code style="background-color:#21262d; padding:3px 6px; border-radius:6px; font-family:monospace; font-size:14px; color:#f78166; border:1px solid #30363d;">fix: resolve emotional incident during production</code></strong><br>
+        has officially been <span style="background-color:rgba(46,160,67,0.15); color:#3fb950; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:600; border:1px solid rgba(46,160,67,0.3); display:inline-block; margin-top:6px;">approved and merged 🟢</span>
+      </p>
+      
+      <p style="margin-bottom:8px; color:#8b949e; font-size:12px; text-transform:uppercase; letter-spacing:0.05em; font-weight:600;">The requested fixes have been deployed:</p>
+      <div style="border-left:4px solid #8957e5; padding-left:16px; margin:16px 0; color:#c9d1d9; font-style:italic; background-color:rgba(137,87,229,0.05); padding-top:8px; padding-bottom:8px; border-radius:0 6px 6px 0;">
+        <p style="margin:4px 0;">&gt; Less spam.</p>
+        <p style="margin:4px 0;">&gt; More respect for your work.</p>
+        <p style="margin:4px 0;">&gt; Better communication.</p>
+        <p style="margin:4px 0;">&gt; Less unnecessary drama.</p>
+        <p style="margin:4px 0;">&gt; And absolutely <strong>no more competing with your code.</strong> 💻</p>
+      </div>
+
+      <table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:14px; color:#c9d1d9;">
+        <tr style="border-bottom:1px solid #21262d;"><td style="padding:8px 0; font-weight:600; color:#8b949e;">Build:</td><td style="padding:8px 0; text-align:right; font-weight:600; color:#3fb950;">✅ PASS</td></tr>
+        <tr style="border-bottom:1px solid #21262d;"><td style="padding:8px 0; font-weight:600; color:#8b949e;">Tests:</td><td style="padding:8px 0; text-align:right; font-weight:600; color:#3fb950;">✅ PASS</td></tr>
+        <tr style="border-bottom:1px solid #21262d;"><td style="padding:8px 0; font-weight:600; color:#8b949e;">Kopal's apology:</td><td style="padding:8px 0; text-align:right; font-weight:600; color:#3fb950;">✅ COMPLETED</td></tr>
+        <tr style="border-bottom:1px solid #21262d;"><td style="padding:8px 0; font-weight:600; color:#8b949e;">Shiva's anger:</td><td style="padding:8px 0; text-align:right; font-weight:600; color:#d29922;">⏳ hopefully resolved</td></tr>
+      </table>
+
+      <div style="margin-top:24px; font-size:13px; color:#8b949e; background-color:rgba(210,153,34,0.1); border:1px dashed rgba(210,153,34,0.3); padding:12px 16px; border-radius:6px; line-height:1.5;">
+        <strong style="color:#d29922;">One final reminder from the system:</strong><br>
+        Please don't keep the contributor waiting indefinitely. 🥲
+      </div>
+
+      <p style="margin-top:24px; color:#c9d1d9;">Thank you for reviewing my very serious and definitely legally binding PR.</p>
+      <p style="color:#c9d1d9; margin-bottom:0;">Please consider this my official apology, now successfully merged into your system. 🥺</p>
+      
+      <p style="margin-top:32px; margin-bottom:0; font-size:14px; border-top:1px solid #30363d; padding-top:20px; color:#8b949e;">
+        <strong>Yours stubbornly,</strong><br>
+        <span style="color:#f778ba; font-weight:600; font-size:16px; display:inline-block; margin-top:4px;">Kopal</span>
+      </p>
+    </div>
+    <div style="background-color:#010409; padding:16px; text-align:center; font-size:11px; color:#8b949e; border-top:1px solid #30363d; font-family:monospace;">
+      pull request #1 · repo: pull-request · branch: main
+    </div>
+  </div>
+</div>
+`;
+
+    // Kopal Email Subject
+    const kopalSubject = `Hi Kopal, PR #001 has been merged successfully 🟢`;
+    
+    // Kopal Email HTML Template
+    const kopalHtmlBody = `
+<div style="background-color:#0d1117; color:#e6edf3; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; padding:32px 16px; margin:0; line-height:1.6;">
+  <div style="max-width:560px; margin:0 auto; background-color:#161b22; border:1px solid #30363d; border-radius:12px; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,0.55);">
+    <div style="background-color:#010409; padding:20px 24px; border-bottom:1px solid #30363d;">
+      <span style="font-weight:600; font-size:14px; color:#8b949e; font-family:monospace;">⌬ kopal / pull-request</span>
+    </div>
+    <div style="padding:32px 24px;">
+      <h2 style="font-size:18px; font-weight:600; margin-top:0; margin-bottom:16px; color:#58a6ff; font-family:inherit;">Hi Kopal,</h2>
+      
+      <p style="margin-bottom:6px; font-size:15px; color:#3fb950; font-weight:600;">Good news.</p>
+      
+      <p style="margin-bottom:20px; font-size:15px; color:#c9d1d9;">
+        <strong>PR #001: <code style="background-color:#21262d; padding:3px 6px; border-radius:6px; font-family:monospace; font-size:14px; color:#f78166; border:1px solid #30363d;">fix: resolve emotional incident during production</code></strong><br>
+        has been approved by @shiva and <span style="background-color:rgba(137,87,229,0.15); color:#bc8cff; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:600; border:1px solid rgba(137,87,229,0.3); display:inline-block; margin-top:6px;">merged successfully 🟢</span>
+      </p>
+      
+      <h3 style="font-size:12px; font-weight:600; margin-top:24px; margin-bottom:12px; color:#8b949e; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid #30363d; padding-bottom:6px;">Final status</h3>
+      <table style="width:100%; border-collapse:collapse; margin-bottom:24px; font-size:14px; color:#c9d1d9;">
+        <tr style="border-bottom:1px solid #21262d;"><td style="padding:8px 0; font-weight:600; color:#8b949e;">Apology:</td><td style="padding:8px 0; text-align:right; font-weight:600; color:#3fb950;">✅ Accepted</td></tr>
+        <tr style="border-bottom:1px solid #21262d;"><td style="padding:8px 0; font-weight:600; color:#8b949e;">Behavioural fixes:</td><td style="padding:8px 0; text-align:right; font-weight:600; color:#3fb950;">✅ Approved</td></tr>
+        <tr style="border-bottom:1px solid #21262d;"><td style="padding:8px 0; font-weight:600; color:#8b949e;">Code jealousy:</td><td style="padding:8px 0; text-align:right; font-weight:600; color:#3fb950;">🟢 Resolved</td></tr>
+        <tr style="border-bottom:1px solid #21262d;"><td style="padding:8px 0; font-weight:600; color:#8b949e;">Message spam:</td><td style="padding:8px 0; text-align:right; font-weight:600; color:#3fb950;">🟢 Fixed</td></tr>
+        <tr style="border-bottom:1px solid #21262d;"><td style="padding:8px 0; font-weight:600; color:#8b949e;">Shiva's anger:</td><td style="padding:8px 0; text-align:right; font-weight:600; color:#d29922;">🟡 Hopefully decreasing</td></tr>
+      </table>
+
+      <p style="margin-bottom:16px; color:#c9d1d9;">Your apology has officially made it into <code style="background-color:#21262d; padding:3px 6px; border-radius:6px; font-family:monospace; font-size:13px; color:#79c0ff; border:1px solid #30363d;">main</code>.</p>
+      <p style="font-weight:600; margin-bottom:20px; color:#f85149; font-size:15px;">Incident #001 is now closed. ❤️</p>
+      
+      <p style="color:#8b949e; font-size:13px; font-style:italic; margin-bottom:24px;">Please do not create another issue.</p>
+
+      <div style="background-color:rgba(56,139,253,0.1); border:1px solid rgba(56,139,253,0.25); padding:14px 16px; border-radius:8px; font-size:14px; text-align:center; color:#c9d1d9; line-height:1.5;">
+        <span style="font-weight:600; color:#58a6ff; display:inline-block; margin-bottom:4px;">System recommendation:</span><br>
+        Go talk to Shiva. 🥺
+      </div>
+      
+      <p style="margin-top:32px; margin-bottom:0; font-size:12px; color:#8b949e; text-align:right; font-style:italic;">
+        — The Shiva–Kopal Repository
+      </p>
+    </div>
+    <div style="background-color:#010409; padding:16px; text-align:center; font-size:11px; color:#8b949e; border-top:1px solid #30363d; font-family:monospace;">
+      pull request #1 · repo: pull-request · branch: main
+    </div>
+  </div>
+</div>
+`;
+
+    if (!GOOGLE_SCRIPT_URL) {
+      console.warn("Google Apps Script URL is not set. Please deploy your Google Apps Script and add the URL to the code.");
+      return;
+    }
+
+    const payload = {
+      action: "merge",
+      userAgent: navigator.userAgent,
+      kopalSubject: kopalSubject,
+      kopalHtmlBody: kopalHtmlBody,
+      shivaSubject: shivaSubject,
+      shivaHtmlBody: shivaHtmlBody
+    };
+
+    // Submit using Google Apps Script Web App
+    fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(() => {
+      console.log("Email notification request sent to Google Apps Script successfully.");
+    })
+    .catch(err => {
+      console.error("Error sending email notification request:", err);
+    });
+  }
+
+  function logEvent(eventName) {
+    if (!GOOGLE_SCRIPT_URL) return;
+    const payload = {
+      action: "log",
+      eventName: eventName,
+      userAgent: navigator.userAgent
+    };
+    fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    }).catch(err => {
+      console.error("Error logging event:", err);
+    });
+  }
+
+  // Trigger initial page load log
+  logEvent("PR Viewed 👀");
+</script>
+
+</body>
+</html>

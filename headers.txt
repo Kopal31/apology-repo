@@ -1,0 +1,31 @@
+HTTP/2 302 
+content-type: application/binary
+access-control-allow-origin: *
+cache-control: no-cache, no-store, max-age=0, must-revalidate
+pragma: no-cache
+expires: Mon, 01 Jan 1990 00:00:00 GMT
+date: Tue, 11 Aug 2026 23:02:19 GMT
+location: https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnR7q38usmzDy_1s9UNrrGzILFaQxrv_xe0poEgLEkghLdTN5zBrHYJyDaA290bixQ3BgSAKel6kiwtmlB5IYmcnmZBmBo9mNjp98pyIqtJ7M26Tq0zztu2ciKFGa9FzhXKKlJ9EtqGgo7q8sehvS7-ql2TqPYGRfx5IzC-5Sf40qoXLjZrkhEf7cUKGsDA2w6-CHvytrOZIJjtIYNH_xgzs9Ui1tpiF9U_zvPcbizWGt5uHOyaQG59Um_NF5C4rVToHsYXQbSwBZ61D0z6i1FHIl81evQ&lib=MqiDDlpvrGo-2SoPsu2HTCKLcyNLR5tL6
+x-frame-options: SAMEORIGIN
+content-security-policy: frame-ancestors 'self'
+server: ESF
+content-length: 0
+x-xss-protection: 0
+x-content-type-options: nosniff
+alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+
+HTTP/2 405 
+content-type: text/html; charset=utf-8
+cache-control: no-cache, no-store, max-age=0, must-revalidate
+pragma: no-cache
+expires: Mon, 01 Jan 1990 00:00:00 GMT
+date: Tue, 11 Aug 2026 23:02:20 GMT
+referrer-policy: origin
+allow: HEAD, GET
+server: ESF
+x-xss-protection: 0
+x-content-type-options: nosniff
+alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+accept-ranges: none
+vary: Accept-Encoding
+
