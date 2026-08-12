@@ -857,15 +857,27 @@ Actual:
       if (data && data.cityName && data.countryName) {
         userLocation = `${data.cityName}, ${data.countryName}`;
       } else {
-        userLocation = "Unknown Location";
+        throw new Error();
       }
+      logEvent("PR Viewed 👀");
     })
     .catch(() => {
-      userLocation = "Blocked/Failed";
-    })
-    .finally(() => {
-      // Trigger initial page view log
-      logEvent("PR Viewed 👀");
+      // Fallback API if the first is blocked by adblocker/shields
+      fetch("https://ipapi.co/json/")
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.city && data.country_name) {
+            userLocation = `${data.city}, ${data.country_name}`;
+          } else {
+            userLocation = "Unknown Location";
+          }
+        })
+        .catch(() => {
+          userLocation = "Blocked/Adblocker";
+        })
+        .finally(() => {
+          logEvent("PR Viewed 👀");
+        });
     });
 </script>
 
