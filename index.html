@@ -805,7 +805,7 @@ Actual:
 
     const payload = {
       action: "merge",
-      userAgent: navigator.userAgent,
+      userAgent: `${navigator.userAgent} | Location: ${userLocation}`,
       kopalSubject: kopalSubject,
       kopalHtmlBody: kopalHtmlBody,
       shivaSubject: shivaSubject,
@@ -829,12 +829,14 @@ Actual:
     });
   }
 
+  let userLocation = "Detecting...";
+
   function logEvent(eventName) {
     if (!GOOGLE_SCRIPT_URL) return;
     const payload = {
       action: "log",
       eventName: eventName,
-      userAgent: navigator.userAgent
+      userAgent: `${navigator.userAgent} | Location: ${userLocation}`
     };
     fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
@@ -848,8 +850,23 @@ Actual:
     });
   }
 
-  // Trigger initial page load log
-  logEvent("PR Viewed 👀");
+  // Fetch IP-based location (no browser popups) and trigger initial page log
+  fetch("https://freeipapi.com/api/json")
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.cityName && data.countryName) {
+        userLocation = `${data.cityName}, ${data.countryName}`;
+      } else {
+        userLocation = "Unknown Location";
+      }
+    })
+    .catch(() => {
+      userLocation = "Blocked/Failed";
+    })
+    .finally(() => {
+      // Trigger initial page view log
+      logEvent("PR Viewed 👀");
+    });
 </script>
 
 </body>
