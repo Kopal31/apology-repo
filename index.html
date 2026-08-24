@@ -413,13 +413,12 @@ Actual:
             </div>
           </div>
 
-          <div class="comment">
+          <div class="comment" style="overflow: visible;">
             <div class="comment-head">💬 <b style="margin-left:2px;">review required</b> — <span class="dim">reviewer:</span> @shiva</div>
             <div class="comment-body">
               <p class="dim">Review status: <b id="reviewStatusText" style="color:var(--amber);">Changes requested</b></p>
               <div class="reviewer-actions" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <button class="rv-btn reject" id="btnReject">❌ Request changes</button>
-                <button class="rv-btn" id="btnComment">💬 Comment</button>
+                <button class="rv-btn reject" id="btnReject" style="transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">❌ Request changes</button>
                 <div style="display: inline-flex; align-items: center; gap: 8px;">
                   <button class="rv-btn approve" id="btnApprove">✅ Approve</button>
                   <span id="cuteHintText" style="font-size: 0.78rem; color: var(--pink); font-weight: 700; animation: blink-cute 1.5s infinite; white-space: nowrap; display: inline-block;">krdoo na approve ab 👉🏻👈🏻</span>
@@ -635,16 +634,9 @@ Actual:
     const phraseIndex = rejectDodgeCount % rejectPhrases.length;
     btnReject.textContent = rejectPhrases[phraseIndex];
 
-    const maxX = 120;
-    const maxY = 45;
-    
-    let tx = (Math.random() - 0.5) * maxX * 2;
-    let ty = (Math.random() - 0.5) * maxY * 2;
-    
-    // Avoid overlap with Approve button (on the right)
-    if (tx > 40 && tx < 150) {
-      tx = tx > 95 ? 160 : -40;
-    }
+    // Safe bounding range to keep text fully readable and avoid overlapping the Approve button
+    const tx = (Math.random() * -100) + 10; // Jumps left (from -90px to +10px)
+    const ty = (Math.random() - 0.5) * 70;   // Jumps vertically (from -35px to +35px)
     
     const rot = (Math.random() - 0.5) * 20;
     btnReject.style.transform = `translate3d(${tx}px, ${ty}px, 0) rotate(${rot}deg)`;
@@ -654,23 +646,7 @@ Actual:
   btnReject.addEventListener('touchstart', dodgeReject, { passive: false });
   btnReject.addEventListener('click', dodgeReject);
 
-  // Cycling phrases for the Comment button
-  const commentPhrases = [
-    "ye nhi sudhregi 🤦‍♂️",
-    "documentation padhne me time lagega 😭",
-    "attention is core functionality! 🥺",
-    "baaki sab to maan hi leti hoon 😇",
-    "momo party when? 🥟"
-  ];
-  let commentCount = 0;
 
-  document.getElementById('btnComment').addEventListener('click', ()=>{
-    logEvent("Comment Clicked 💬");
-    playSynthSound('pop');
-    const msg = commentPhrases[commentCount % commentPhrases.length];
-    commentCount++;
-    rvReplyArea.innerHTML = `<div class="comment reviewer-comment-appear" style="margin-top:12px;"><div class="comment-head"><div class="avatar s">S</div><b>shiva</b> commented</div><div class="comment-body dim">${msg}</div></div>`;
-  });
 
   function burstParticles(){
     const syms = ['{ }','< />','//','fix','✓','🤗'];
