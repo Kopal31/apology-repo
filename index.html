@@ -122,9 +122,17 @@
   .merge-field .k{ color:var(--muted); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; }
   .merge-field .v{ margin-top:2px; }
   .merge-btn{ width:100%; font-family:'JetBrains Mono', monospace; font-weight:700; font-size:0.92rem; background:var(--green); color:#fff; border:1px solid rgba(240,246,252,0.1); padding:13px 20px; border-radius:6px; cursor:pointer; transition: all 0.2s ease; }
-  .merge-btn:hover:not(:disabled){ background:var(--green-open); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(46,160,67,0.3); }
-  .merge-btn:active:not(:disabled){ transform: translateY(0); }
+  .merge-btn:hover:not(:disabled):not(.unapproved){ background:var(--green-open); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(46,160,67,0.3); }
+  .merge-btn:active:not(:disabled):not(.unapproved){ transform: translateY(0); }
   .merge-btn:disabled{ opacity:0.45; cursor:not-allowed; }
+  .merge-btn.unapproved { opacity:0.55; background:#21262d; border-color:var(--border); color:var(--muted); cursor:not-allowed; }
+  .merge-btn.unapproved:hover { background:#30363d; }
+  .shake-btn { animation: shake 0.4s ease; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+  }
   .reviewer-comment-appear{ animation: slideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
   @keyframes slideDown {
     from { opacity: 0; transform: translateY(-12px); }
@@ -432,7 +440,7 @@ Actual:
           <div class="merge-box">
             <div class="merge-field"><div class="k">merge strategy</div><div class="v" id="mergeStrategyVal">Approve above to merge</div></div>
             <div class="merge-field"><div class="k">commit message</div><div class="v">fix: restore peace between Shiva and Kopal</div></div>
-            <button class="merge-btn" id="mergeBtn" disabled>⑂ Squash and merge</button>
+            <button class="merge-btn unapproved" id="mergeBtn">⑂ Squash and merge</button>
             <div class="merge-status-line" id="mergeStatusLine">Awaiting Shiva's approval...</div>
             <div class="merge-output" id="mergeOutput"></div>
           </div>
@@ -689,11 +697,39 @@ Actual:
     }
   }
 
+  let isMerged = false;
   mergeBtn.addEventListener('click', ()=>{
+    if (isMerged) return;
+    
+    // Check if approved
+    const isApproved = !mergeBtn.classList.contains('unapproved');
+    if (!isApproved) {
+      // Play buzzer sound
+      playSynthSound('error');
+      
+      const output = document.getElementById('mergeOutput');
+      output.classList.add('show');
+      output.style.borderColor = 'var(--red)';
+      output.innerHTML = `<span class="b">$</span> git merge --squash kopal:apology-and-behaviour-fix\n<span style="color:var(--red);">error: merge validation failed.</span>\n<span style="color:var(--red);">reason:</span> reviewer @shiva is currently in 'GUSSA' state. 🔴\n<span style="color:var(--blue);">remediation:</span> click the "Approve" button above to authorize.`;
+      
+      // Wiggle the button to show it was blocked
+      mergeBtn.classList.add('shake-btn');
+      setTimeout(()=>mergeBtn.classList.remove('shake-btn'), 400);
+      return;
+    }
+    
+    // Proceed with normal merge
+    isMerged = true;
     logEvent("Squash & Merge Clicked ⑂");
     playSynthSound('chime');
     mergeBtn.disabled = true;
     mergeBtn.textContent = 'Merging...';
+    
+    // Reset output border color
+    const output = document.getElementById('mergeOutput');
+    output.style.borderColor = 'var(--border)';
+    output.classList.add('show');
+    output.innerHTML = '';
     burstParticles();
 
     // flip CI checks
