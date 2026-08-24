@@ -214,7 +214,7 @@
 
     <div class="tabs">
       <button class="tab-btn active" data-tab="conversation">Conversation</button>
-      <button class="tab-btn" data-tab="commits">Commits <span class="count">1</span></button>
+      <button class="tab-btn" data-tab="commits">Commits <span class="count">2</span></button>
       <button class="tab-btn" data-tab="files">Files changed <span class="count">2</span></button>
     </div>
 
@@ -392,7 +392,15 @@ Actual:
                 <li class="ci-row"><span class="label">Code jealousy eliminated</span><span class="val mid" id="ciJealousy">🟡 IN PROGRESS</span></li>
                 <li class="ci-row"><span class="label">Message spam prevention</span><span class="val pass">✅ PASS</span></li>
                 <li class="ci-row"><span class="label">Emotional regulation</span><span class="val mid" id="ciEmotion">🟡 BUILDING</span></li>
-                <li class="ci-row"><span class="label">Shiva's anger</span><span class="val fail" id="ciAnger">🔴 FAILING</span></li>
+                <li class="ci-row">
+                  <span class="label">Shiva's anger level</span>
+                  <span class="val fail" id="ciAnger" style="display:flex; align-items:center; gap:8px;">
+                    <span id="angerValText">😡 100%</span>
+                    <div style="width:60px; height:8px; background:#30363d; border-radius:4px; overflow:hidden; display:inline-block; vertical-align:middle;">
+                      <div id="angerBar" style="width:100%; height:100%; background:var(--red); transition:all 0.3s ease;"></div>
+                    </div>
+                  </span>
+                </li>
                 <li class="ci-row"><span class="label">Peace restoration</span><span class="val pending" id="ciPeace">⏳ PENDING REVIEW</span></li>
               </ul>
             </div>
@@ -441,6 +449,13 @@ Actual:
         <!-- COMMITS -->
         <div class="tab-panel" id="tab-commits">
           <div style="border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+            <div class="commit-row" style="border-bottom:1px solid var(--border);">
+              <div class="avatar k">K</div>
+              <div>
+                <div class="msg">feat: inject 1000000% extra attention to priority queue 🧸</div>
+                <div class="sub">kopal committed now · <span class="hash">a7c2e9b</span></div>
+              </div>
+            </div>
             <div class="commit-row">
               <div class="avatar k">K</div>
               <div>
@@ -570,7 +585,32 @@ Actual:
   const rvReplyArea = document.getElementById('rvReplyArea');
   const btnReject = document.getElementById('btnReject');
 
-  document.getElementById('btnApprove').addEventListener('click', ()=>{
+  const btnApprove = document.getElementById('btnApprove');
+  const angerValText = document.getElementById('angerValText');
+  const angerBar = document.getElementById('angerBar');
+  const ciAnger = document.getElementById('ciAnger');
+
+  btnApprove.addEventListener('mouseenter', () => {
+    if (reviewStatusText.textContent === 'Approved') return;
+    if (angerValText) angerValText.textContent = '🥺 10%';
+    if (angerBar) {
+      angerBar.style.width = '10%';
+      angerBar.style.backgroundColor = 'var(--amber)';
+    }
+    if (ciAnger) ciAnger.className = 'val mid';
+  });
+
+  btnApprove.addEventListener('mouseleave', () => {
+    if (reviewStatusText.textContent === 'Approved') return;
+    if (angerValText) angerValText.textContent = '😡 100%';
+    if (angerBar) {
+      angerBar.style.width = '100%';
+      angerBar.style.backgroundColor = 'var(--red)';
+    }
+    if (ciAnger) ciAnger.className = 'val fail';
+  });
+
+  btnApprove.addEventListener('click', ()=>{
     logEvent("Approve Clicked ✅");
     playSynthSound('chime');
     reviewStatus.textContent = 'Approved';
@@ -591,6 +631,14 @@ Actual:
     btnReject.style.transform = 'none';
     btnReject.textContent = 'Resolved 💖';
     btnReject.disabled = true;
+
+    // Update anger check permanently
+    if (angerValText) angerValText.textContent = '🥰 0%';
+    if (angerBar) {
+      angerBar.style.width = '0%';
+      angerBar.style.backgroundColor = 'var(--green-open)';
+    }
+    if (ciAnger) ciAnger.className = 'val pass';
 
     // Update Critical Incident status banner
     const bannerStatus = document.getElementById('bannerStatusText');
