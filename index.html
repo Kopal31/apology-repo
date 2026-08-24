@@ -426,7 +426,7 @@ Actual:
             <div class="comment-body">
               <p class="dim">Review status: <b id="reviewStatusText" style="color:var(--amber);">Changes requested</b></p>
               <div class="reviewer-actions" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <button class="rv-btn reject" id="btnReject" style="transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">❌ Request changes</button>
+                <button class="rv-btn reject" id="btnReject" style="transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">close PR without merge 🔒</button>
                 <div style="display: inline-flex; align-items: center; gap: 8px;">
                   <button class="rv-btn approve" id="btnApprove">✅ Approve</button>
                   <span id="cuteHintText" style="font-size: 0.78rem; color: var(--pink); font-weight: 700; animation: blink-cute 1.5s infinite; white-space: nowrap; display: inline-block;">krdoo na approve ab 👉🏻👈🏻</span>
@@ -661,7 +661,7 @@ Actual:
 
   // Conversational dodging phrases for "Request changes"
   const rejectPhrases = [
-    "❌ Request changes",
+    "close PR without merge 🔒",
     "kaan pakadke sorry 🥺",
     "please na shiva",
     "no more gussa",
