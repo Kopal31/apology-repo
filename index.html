@@ -511,6 +511,50 @@ Actual:
   </div>
 
 <script>
+  // Synthesize cute game sounds using Web Audio API (100% self-contained and offline)
+  function playSynthSound(type) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
+      if (type === 'pop') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(450, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1300, ctx.currentTime + 0.08);
+        
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.08);
+      } else if (type === 'chime') {
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.07);
+          
+          gain.gain.setValueAtTime(0.08, ctx.currentTime + idx * 0.07);
+          gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + idx * 0.07 + 0.22);
+          
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + idx * 0.07);
+          osc.stop(ctx.currentTime + idx * 0.07 + 0.22);
+        });
+      }
+    } catch (e) {
+      // Fallback silently if AudioContext is blocked
+    }
+  }
+
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -525,9 +569,11 @@ Actual:
   const reviewStatus = document.getElementById('reviewStatus');
   const reviewStatusText = document.getElementById('reviewStatusText');
   const rvReplyArea = document.getElementById('rvReplyArea');
+  const btnReject = document.getElementById('btnReject');
 
   document.getElementById('btnApprove').addEventListener('click', ()=>{
     logEvent("Approve Clicked ✅");
+    playSynthSound('chime');
     reviewStatus.textContent = 'Approved';
     reviewStatus.classList.add('done');
     reviewStatusText.textContent = 'Approved';
@@ -541,6 +587,11 @@ Actual:
     if (hint) {
       hint.style.display = 'none';
     }
+
+    // Stop wiggling and disable Request Changes button
+    btnReject.style.transform = 'none';
+    btnReject.textContent = 'Resolved 💖';
+    btnReject.disabled = true;
 
     // Update Critical Incident status banner
     const bannerStatus = document.getElementById('bannerStatusText');
@@ -561,43 +612,67 @@ Actual:
     }
   });
 
-  document.getElementById('btnReject').addEventListener('click', ()=>{
-    logEvent("Request Changes Clicked ❌");
-    reviewStatusText.textContent = 'Changes requested';
-    reviewStatusText.style.color = 'var(--amber)';
-    mergeBtn.disabled = true;
-    mergeStatusLine.textContent = "Awaiting Shiva's approval...";
-    rvReplyArea.innerHTML = '<div class="comment reviewer-comment-appear" style="margin-top:12px;"><div class="comment-head"><div class="avatar s">S</div><b>shiva</b> requested changes</div><div class="comment-body dim">ye sab kya hai</div></div>';
+  // Conversational dodging phrases for "Request changes"
+  const rejectPhrases = [
+    "❌ Request changes",
+    "Are you sure? 🥺",
+    "No more modifications! 😭",
+    "This PR is perfect! 💅",
+    "Just approve it already! 🧸",
+    "I promise to behave! 🌸",
+    "Pleassseee? 🥺",
+    "Error: Action not allowed 🚫",
+    "System override active! 🔒",
+    "Just click Approve 💖"
+  ];
+  let rejectDodgeCount = 0;
+
+  function dodgeReject(e) {
+    if (e) e.preventDefault();
+    if (btnReject.disabled) return;
     
-    // Show the cute hint text again if rejected
-    const hint = document.getElementById('cuteHintText');
-    if (hint) {
-      hint.style.display = 'inline-block';
-    }
+    // Cycle phrases
+    rejectDodgeCount++;
+    playSynthSound('pop');
+    
+    const phraseIndex = rejectDodgeCount % rejectPhrases.length;
+    btnReject.textContent = rejectPhrases[phraseIndex];
 
-    // Reset merge strategy status text
-    const mergeStrategy = document.getElementById('mergeStrategyVal');
-    if (mergeStrategy) {
-      mergeStrategy.textContent = 'Approve above to merge';
+    const maxX = 120;
+    const maxY = 45;
+    
+    let tx = (Math.random() - 0.5) * maxX * 2;
+    let ty = (Math.random() - 0.5) * maxY * 2;
+    
+    // Avoid overlap with Approve button (on the right)
+    if (tx > 40 && tx < 150) {
+      tx = tx > 95 ? 160 : -40;
     }
+    
+    const rot = (Math.random() - 0.5) * 20;
+    btnReject.style.transform = `translate3d(${tx}px, ${ty}px, 0) rotate(${rot}deg)`;
+  }
 
-    // Update Critical Incident status banner
-    const bannerStatus = document.getElementById('bannerStatusText');
-    const bannerBadge = document.getElementById('bannerBadge');
-    if (bannerStatus) {
-      bannerStatus.textContent = 'AWAITING SHIVA\'S REVIEW';
-      bannerStatus.style.color = 'var(--amber)';
-    }
-    if (bannerBadge) {
-      bannerBadge.textContent = 'HIGH SEVERITY';
-      bannerBadge.style.backgroundColor = 'rgba(210,153,34,0.15)';
-      bannerBadge.style.color = 'var(--amber)';
-    }
-  });
+  btnReject.addEventListener('mouseenter', dodgeReject);
+  btnReject.addEventListener('touchstart', dodgeReject, { passive: false });
+  btnReject.addEventListener('click', dodgeReject);
+
+  // Cycling phrases for the Comment button
+  const commentPhrases = [
+    "ye nhi sudhregi 🤦‍♂️",
+    "documentation padhne me time lagega 😭",
+    "attention is core functionality! 🥺",
+    "baaki sab to maan hi leti hoon 😇",
+    "momo party when? 🥟"
+  ];
+  let commentCount = 0;
 
   document.getElementById('btnComment').addEventListener('click', ()=>{
     logEvent("Comment Clicked 💬");
-    rvReplyArea.innerHTML = '<div class="comment reviewer-comment-appear" style="margin-top:12px;"><div class="comment-head"><div class="avatar s">S</div><b>shiva</b> commented</div><div class="comment-body dim">ye nhi sudhregi</div></div>';
+    playSynthSound('pop');
+    const msg = commentPhrases[commentCount % commentPhrases.length];
+    commentCount++;
+    rvReplyArea.innerHTML = `<div class="comment reviewer-comment-appear" style="margin-top:12px;"><div class="comment-head"><div class="avatar s">S</div><b>shiva</b> commented</div><div class="comment-body dim">${msg}</div></div>`;
   });
 
   function burstParticles(){
@@ -616,6 +691,7 @@ Actual:
 
   mergeBtn.addEventListener('click', ()=>{
     logEvent("Squash & Merge Clicked ⑂");
+    playSynthSound('chime');
     mergeBtn.disabled = true;
     mergeBtn.textContent = 'Merging...';
     burstParticles();
